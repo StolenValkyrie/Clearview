@@ -14,7 +14,6 @@ const {
 } = require('discord.js');
 
 // ===== EDIT THESE =====
-const BANNER_URL = 'https://example.com/banner.png';
 const FOOTER_URL = 'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-489d-9071-4fde46d0fafe.png';
 
 const TEXT = {
@@ -83,7 +82,6 @@ function resultsText(p) {
 // ---------- the poll container ----------
 function buildPoll(p) {
   return new ContainerBuilder()
-    .addMediaGalleryComponents(gallery(BANNER_URL))
     .addTextDisplayComponents(text(`${TEXT.header(p)}\n\n${resultsText(p)}`))
     .addSeparatorComponents(divider())
     .addMediaGalleryComponents(gallery(FOOTER_URL))
