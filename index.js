@@ -15,6 +15,7 @@ const {
 
 const { handleOrderInteraction } = require('./systems/orders');
 const { handleGiveawayInteraction, resumeGiveaways } = require('./systems/giveaway');
+const { handlePollInteraction, resumePolls } = require('./systems/polls');
 const { handlePortfolioMessage } = require('./systems/portfolios');
 
 if (!process.env.TOKEN) {
@@ -134,6 +135,12 @@ client.once('clientReady', async () => {
     console.error('[Giveaways] Failed to restore giveaways:', error);
   }
 
+  try {
+    resumePolls(client);
+  } catch (error) {
+    console.error('[Polls] Failed to restore polls:', error);
+  }
+
   console.log('[Bot] Startup completed.');
 });
 
@@ -142,6 +149,10 @@ client.on('interactionCreate', async (interaction) => {
     try {
       if (interaction.isButton() && interaction.customId.startsWith('gw_')) {
         return await handleGiveawayInteraction(interaction);
+      }
+
+      if (interaction.isButton() && interaction.customId.startsWith('poll_')) {
+        return await handlePollInteraction(interaction);
       }
 
       if (interaction.customId.startsWith('order_')) {

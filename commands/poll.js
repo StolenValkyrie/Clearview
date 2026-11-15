@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { createPoll } = require('../systems/polls');
-const { parseDuration } = require('../systems/giveaways');
+const { createPoll, parseDuration } = require('../systems/polls');
 
 module.exports = {
   data: new SlashCommandBuilder()

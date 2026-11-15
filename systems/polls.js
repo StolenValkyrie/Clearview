@@ -49,6 +49,16 @@ const gallery = (url) =>
 const divider = () =>
   new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small);
 
+// "30m", "2h", "1d", "1w" -> milliseconds (10 seconds to 30 days)
+function parseDuration(input) {
+  const match = /^(\d+)\s*(s|m|h|d|w)$/i.exec(input.trim());
+  if (!match) return null;
+  const units = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000, w: 604_800_000 };
+  const ms = Number(match[1]) * units[match[2].toLowerCase()];
+  if (ms < 10_000 || ms > 30 * 86_400_000) return null;
+  return ms;
+}
+
 // votes are stored as { userId: optionIndex }
 function tally(p) {
   const counts = p.options.map(() => 0);
@@ -168,4 +178,4 @@ async function handlePollInteraction(interaction) {
   return interaction.update({ components: [buildPoll(p)], flags: V2 });
 }
 
-module.exports = { createPoll, handlePollInteraction, resumePolls };
+module.exports = { createPoll, handlePollInteraction, resumePolls, parseDuration };
