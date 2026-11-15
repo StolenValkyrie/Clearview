@@ -18,7 +18,7 @@ const FOOTER_URL = 'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-4
 
 const TEXT = {
   header: (p) =>
-    `# 📊 ${p.question}\n` +
+    `# ${p.question}\n` +
     `**Asked by:** <@${p.hostId}>` +
     (p.endsAt
       ? `\n**${p.ended ? 'Ended' : 'Ends'}:** <t:${Math.floor(p.endsAt / 1000)}:R>`
