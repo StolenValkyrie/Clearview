@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 
 const fs = require('node:fs');
@@ -13,16 +14,27 @@ const {
   MessageFlags,
 } = require('discord.js');
 
+// System handlers
 const { handleOrderInteraction } = require('./systems/orders');
-const { handleGiveawayInteraction, resumeGiveaways } = require('./systems/giveaway');
-const { handlePollInteraction, resumePolls } = require('./systems/polls');
+const {
+  handleGiveawayInteraction,
+  resumeGiveaways,
+} = require('./systems/giveaway');
+
+const {
+  handlePollInteraction,
+  resumePolls,
+} = require('./systems/polls');
+
 const { handlePortfolioMessage } = require('./systems/portfolios');
 
+// Check environment variables
 if (!process.env.TOKEN) {
   console.error('[Startup] Missing TOKEN in .env file.');
   process.exit(1);
 }
 
+// Create Discord client (ONLY ONCE)
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -32,16 +44,9 @@ const client = new Client({
   ],
 });
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
-});
-
 client.commands = new Collection();
 
+// Load commands
 const commandsPath = path.join(__dirname, 'commands');
 
 if (!fs.existsSync(commandsPath)) {
@@ -49,58 +54,96 @@ if (!fs.existsSync(commandsPath)) {
   process.exit(1);
 }
 
-const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
+const commandFiles = fs
+  .readdirSync(commandsPath)
+  .filter((file) => file.endsWith('.js'));
 
 for (const file of commandFiles) {
   try {
     const command = require(path.join(commandsPath, file));
 
-    if (command.data && typeof command.execute === 'function') {
+    if (
+      command.data &&
+      typeof command.execute === 'function'
+    ) {
       client.commands.set(command.data.name, command);
       console.log(`[Commands] Loaded: ${command.data.name}`);
     } else {
-      console.warn(`[Commands] ${file} is missing data or execute().`);
+      console.warn(
+        `[Commands] ${file} is missing data or execute().`
+      );
     }
   } catch (error) {
     console.error(`[Commands] Failed to load ${file}:`, error);
   }
 }
 
+// Build Discord response payload
 function buildPayload(result, ephemeral = false) {
   const items = Array.isArray(result) ? result : [result];
 
-  const texts = items.filter((item) => typeof item === 'string');
-  const embeds = items.filter((item) => item instanceof EmbedBuilder);
-  const containers = items.filter((item) => item instanceof ContainerBuilder);
+  const texts = items.filter(
+    (item) => typeof item === 'string'
+  );
+
+  const embeds = items.filter(
+    (item) => item instanceof EmbedBuilder
+  );
+
+  const containers = items.filter(
+    (item) => item instanceof ContainerBuilder
+  );
 
   const flags = ephemeral ? MessageFlags.Ephemeral : 0;
 
+  // Components V2 response
   if (containers.length) {
     const components = [
-      ...texts.map((content) => new TextDisplayBuilder().setContent(content)),
+      ...texts.map(
+        (content) =>
+          new TextDisplayBuilder().setContent(content)
+      ),
       ...containers,
     ];
 
-    return { components, flags: flags | MessageFlags.IsComponentsV2 };
+    return {
+      components,
+      flags: flags | MessageFlags.IsComponentsV2,
+    };
   }
 
+  // Normal response
   const payload = {};
 
-  if (texts.length) payload.content = texts.join('\n');
-  if (embeds.length) payload.embeds = embeds;
-  if (flags) payload.flags = flags;
+  if (texts.length) {
+    payload.content = texts.join('\n');
+  }
+
+  if (embeds.length) {
+    payload.embeds = embeds;
+  }
+
+  if (flags) {
+    payload.flags = flags;
+  }
 
   return payload;
 }
 
+// Resolve command result
 function resolveResult(result) {
-  if (result && result.constructor === Object && 'message' in result) {
+  if (
+    result &&
+    result.constructor === Object &&
+    'message' in result
+  ) {
     return buildPayload(result.message, result.ephemeral);
   }
 
   return buildPayload(result);
 }
 
+// Handle interaction errors
 async function handleInteractionError(interaction, error) {
   console.error('[Interaction Error]', error);
 
@@ -116,55 +159,95 @@ async function handleInteractionError(interaction, error) {
       await interaction.reply(response);
     }
   } catch (replyError) {
-    console.error('[Interaction Error] Could not send error response:', replyError);
+    console.error(
+      '[Interaction Error] Could not send error response:',
+      replyError
+    );
   }
 }
 
+// Bot ready event
 client.once('clientReady', async () => {
   console.log(`[Bot] Logged in as ${client.user.tag}`);
 
+  // Register slash commands
   try {
-    const body = client.commands.map((command) => command.data.toJSON());
+    const body = client.commands.map(
+      (command) => command.data.toJSON()
+    );
+
     const guildId = process.env.GUILD_ID;
 
     if (!guildId) {
-      console.warn('[Commands] GUILD_ID is missing. Commands were not registered.');
+      console.warn(
+        '[Commands] GUILD_ID is missing. Commands were not registered.'
+      );
     } else {
       const guild = await client.guilds.fetch(guildId);
+
       await guild.commands.set(body);
-      console.log(`[Commands] Registered ${body.length} guild commands.`);
+
+      console.log(
+        `[Commands] Registered ${body.length} guild commands.`
+      );
     }
   } catch (error) {
-    console.error('[Commands] Command registration failed:', error);
+    console.error(
+      '[Commands] Command registration failed:',
+      error
+    );
   }
 
+  // Restore giveaways
   try {
-    resumeGiveaways(client);
+    await resumeGiveaways(client);
+    console.log('[Giveaways] Restoration completed.');
   } catch (error) {
-    console.error('[Giveaways] Failed to restore giveaways:', error);
+    console.error(
+      '[Giveaways] Failed to restore giveaways:',
+      error
+    );
   }
 
+  // Restore polls
   try {
-    resumePolls(client);
+    await resumePolls(client);
+    console.log('[Polls] Restoration completed.');
   } catch (error) {
-    console.error('[Polls] Failed to restore polls:', error);
+    console.error(
+      '[Polls] Failed to restore polls:',
+      error
+    );
   }
 
   console.log('[Bot] Startup completed.');
 });
 
+// Interaction handler
 client.on('interactionCreate', async (interaction) => {
-  if (interaction.isButton() || interaction.isModalSubmit()) {
+  // Buttons and modals
+  if (
+    interaction.isButton() ||
+    interaction.isModalSubmit()
+  ) {
     try {
-      if (interaction.isButton() && interaction.customId.startsWith('gw_')) {
+      if (
+        interaction.isButton() &&
+        interaction.customId.startsWith('gw_')
+      ) {
         return await handleGiveawayInteraction(interaction);
       }
 
-      if (interaction.isButton() && interaction.customId.startsWith('poll_')) {
+      if (
+        interaction.isButton() &&
+        interaction.customId.startsWith('poll_')
+      ) {
         return await handlePollInteraction(interaction);
       }
 
-      if (interaction.customId.startsWith('order_')) {
+      if (
+        interaction.customId.startsWith('order_')
+      ) {
         return await handleOrderInteraction(interaction);
       }
     } catch (error) {
@@ -174,9 +257,12 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
+  // Slash commands
   if (!interaction.isChatInputCommand()) return;
 
-  const command = client.commands.get(interaction.commandName);
+  const command = client.commands.get(
+    interaction.commandName
+  );
 
   if (!command) {
     return interaction.reply({
@@ -188,7 +274,14 @@ client.on('interactionCreate', async (interaction) => {
   try {
     const result = await command.execute(interaction);
 
-    if (!result || interaction.replied || interaction.deferred) return;
+    if (
+      result === undefined ||
+      result === null ||
+      interaction.replied ||
+      interaction.deferred
+    ) {
+      return;
+    }
 
     await interaction.reply(resolveResult(result));
   } catch (error) {
@@ -196,16 +289,26 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
+// Portfolio message handler
 client.on('messageCreate', async (message) => {
   if (message.author.bot || !message.guild) return;
 
   try {
     await handlePortfolioMessage(message);
   } catch (error) {
-    console.error('[Portfolio] Message handler error:', error);
+    console.error(
+      '[Portfolio] Message handler error:',
+      error
+    );
   }
 });
 
+// Discord client error handler
+client.on('error', (error) => {
+  console.error('[Discord Client Error]', error);
+});
+
+// Login
 client.login(process.env.TOKEN).catch((error) => {
   console.error('[Startup] Discord login failed:', error);
   process.exit(1);
