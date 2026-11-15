@@ -16,9 +16,6 @@ const {
   ActionRowBuilder,
 } = require('discord.js');
 
-// ===== CONFIGURATION =====
-const BANNER_URL = 'https://example.com/banner.png';
-
 const FOOTER_URL =
   'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-489d-9071-4fde46d0fafe.png';
 
@@ -28,8 +25,8 @@ const TEXT = {
   leaveLabel: 'Leave',
 
   active: (g) =>
-    `# Giveaway` +
-    ` Prize: ${g.prize}\n` +
+    `# 🎉 Giveaway\n` +
+    `**Prize:** ${g.prize}\n` +
     `**Hosted by:** <@${g.hostId}>\n` +
     `**Ends:** <t:${Math.floor(g.endsAt / 1000)}:R>\n` +
     `**Winners:** ${g.winners}\n` +
@@ -37,7 +34,8 @@ const TEXT = {
     `Click the button below to enter!`,
 
   ended: (g) =>
-    `# Prize: ${g.prize}\n` +
+    `# 🎉 Giveaway Ended\n` +
+    `**Prize:** ${g.prize}\n` +
     `**Hosted by:** <@${g.hostId}>\n` +
     `**Ended:** <t:${Math.floor(g.endsAt / 1000)}:R>\n` +
     `**Entries:** ${g.entries.length}\n\n` +
@@ -46,7 +44,7 @@ const TEXT = {
       : '**Winners:** No valid entries'),
 
   announceWinners: (g) =>
-    `Congratulations ${g.winnerIds.map((id) => `<@${id}>`).join(', ')}! You won **${g.prize}**!`,
+    `🎉 Congratulations ${g.winnerIds.map((id) => `<@${id}>`).join(', ')}! You won **${g.prize}**!`,
 
   announceNoEntries: (g) =>
     `Nobody entered the giveaway for **${g.prize}**, so there are no winners.`,
@@ -57,12 +55,8 @@ const TEXT = {
   alreadyEnded: 'This giveaway has already ended.',
 };
 
-// ==========================
-
 const V2 = MessageFlags.IsComponentsV2;
 const EPHEMERAL = MessageFlags.Ephemeral;
-
-// ---------- STORAGE ----------
 
 const FILE = path.join(__dirname, 'giveaways.json');
 
@@ -89,8 +83,6 @@ function save() {
   }
 }
 
-// ---------- HELPERS ----------
-
 const text = (content) =>
   new TextDisplayBuilder().setContent(content);
 
@@ -103,9 +95,6 @@ const divider = () =>
   new SeparatorBuilder()
     .setDivider(true)
     .setSpacing(SeparatorSpacingSize.Small);
-
-// Supports 30s, 10m, 2h, 1d, 1w.
-// Minimum: 10 seconds. Maximum: 30 days.
 
 function parseDuration(input) {
   if (typeof input !== 'string') return null;
@@ -123,8 +112,7 @@ function parseDuration(input) {
   };
 
   const amount = Number(match[1]);
-  const unit = match[2].toLowerCase();
-  const ms = amount * units[unit];
+  const ms = amount * units[match[2].toLowerCase()];
 
   if (!Number.isSafeInteger(ms)) return null;
   if (ms < 10_000 || ms > 30 * 86_400_000) return null;
@@ -132,11 +120,8 @@ function parseDuration(input) {
   return ms;
 }
 
-// ---------- GIVEAWAY CONTAINER ----------
-
 function buildGiveaway(g) {
   return new ContainerBuilder()
-    .addMediaGalleryComponents(gallery(BANNER_URL))
     .addTextDisplayComponents(
       text(g.ended ? TEXT.ended(g) : TEXT.active(g))
     )
@@ -156,8 +141,6 @@ function buildGiveaway(g) {
     );
 }
 
-// ---------- FETCH GIVEAWAY MESSAGE ----------
-
 async function fetchGiveawayMessage(client, g, messageId) {
   try {
     const channel = await client.channels.fetch(g.channelId);
@@ -172,8 +155,6 @@ async function fetchGiveawayMessage(client, g, messageId) {
   }
 }
 
-// ---------- ENTRY REFRESH ----------
-
 const refreshTimers = new Map();
 
 function refresh(client, messageId) {
@@ -186,11 +167,7 @@ function refresh(client, messageId) {
 
     if (!g || g.ended) return;
 
-    const message = await fetchGiveawayMessage(
-      client,
-      g,
-      messageId
-    );
+    const message = await fetchGiveawayMessage(client, g, messageId);
 
     if (!message) return;
 
@@ -198,13 +175,10 @@ function refresh(client, messageId) {
       components: [buildGiveaway(g)],
       flags: V2,
     }).catch(console.error);
-
   }, 2000);
 
   refreshTimers.set(messageId, timer);
 }
-
-// ---------- GIVEAWAY ENDING ----------
 
 const endTimers = new Map();
 
@@ -240,14 +214,12 @@ async function endGiveaway(client, messageId) {
 
   if (!g || g.ended) return;
 
-  // Select random winners without duplicates.
   const pool = [...g.entries];
 
   g.winnerIds = [];
 
   while (pool.length && g.winnerIds.length < g.winners) {
     const index = Math.floor(Math.random() * pool.length);
-
     g.winnerIds.push(pool.splice(index, 1)[0]);
   }
 
@@ -260,16 +232,10 @@ async function endGiveaway(client, messageId) {
 
   endTimers.delete(messageId);
 
-  const message = await fetchGiveawayMessage(
-    client,
-    g,
-    messageId
-  );
+  const message = await fetchGiveawayMessage(client, g, messageId);
 
   if (!message) {
-    console.error(
-      `[Giveaways] Could not find giveaway message ${messageId}`
-    );
+    console.error(`[Giveaways] Could not find giveaway message ${messageId}`);
     return;
   }
 
@@ -282,14 +248,11 @@ async function endGiveaway(client, messageId) {
     content: g.winnerIds.length
       ? TEXT.announceWinners(g)
       : TEXT.announceNoEntries(g),
-
     allowedMentions: {
       users: g.winnerIds,
     },
   }).catch(console.error);
 }
-
-// ---------- CREATE GIVEAWAY ----------
 
 async function createGiveaway(
   channel,
@@ -340,8 +303,6 @@ async function createGiveaway(
   return message;
 }
 
-// ---------- RESUME GIVEAWAYS ----------
-
 function resumeGiveaways(client) {
   for (const id of Object.keys(data)) {
     const g = data[id];
@@ -363,15 +324,11 @@ function resumeGiveaways(client) {
   console.log('[Giveaways] Active giveaway timers restored.');
 }
 
-// ---------- BUTTON HANDLER ----------
-
 async function handleGiveawayInteraction(interaction) {
   if (!interaction.isButton()) return;
 
   const [action, targetId] = interaction.customId.split('|');
   const userId = interaction.user.id;
-
-  // ===== ENTER BUTTON =====
 
   if (action === 'gw_enter') {
     const messageId = interaction.message.id;
@@ -379,8 +336,7 @@ async function handleGiveawayInteraction(interaction) {
 
     if (!g || g.ended || Date.now() >= g.endsAt) {
       if (g && !g.ended) {
-        await endGiveaway(interaction.client, messageId)
-          .catch(console.error);
+        await endGiveaway(interaction.client, messageId).catch(console.error);
       }
 
       return interaction.reply({
@@ -389,10 +345,8 @@ async function handleGiveawayInteraction(interaction) {
       });
     }
 
-    // Add entry.
     if (!g.entries.includes(userId)) {
       g.entries.push(userId);
-
       save();
 
       await interaction.reply({
@@ -401,11 +355,9 @@ async function handleGiveawayInteraction(interaction) {
       });
 
       refresh(interaction.client, messageId);
-
       return;
     }
 
-    // Already entered: show leave confirmation.
     const section = new SectionBuilder()
       .addTextDisplayComponents(text(TEXT.confirmLeave))
       .setButtonAccessory(
@@ -423,15 +375,12 @@ async function handleGiveawayInteraction(interaction) {
     });
   }
 
-  // ===== LEAVE BUTTON =====
-
   if (action === 'gw_leave') {
     const g = data[targetId];
 
     if (!g || g.ended || Date.now() >= g.endsAt) {
       if (g && !g.ended) {
-        await endGiveaway(interaction.client, targetId)
-          .catch(console.error);
+        await endGiveaway(interaction.client, targetId).catch(console.error);
       }
 
       return interaction.update({
@@ -456,7 +405,6 @@ async function handleGiveawayInteraction(interaction) {
     }
 
     g.entries = g.entries.filter((id) => id !== userId);
-
     save();
 
     refresh(interaction.client, targetId);
@@ -471,8 +419,6 @@ async function handleGiveawayInteraction(interaction) {
     });
   }
 }
-
-// ---------- EXPORTS ----------
 
 module.exports = {
   createGiveaway,
