@@ -28,7 +28,8 @@ const TEXT = {
   leaveLabel: 'Leave',
 
   active: (g) =>
-    `# 🎉 ${g.prize}\n` +
+    `# Giveaway` +
+    ` Prize: ${g.prize}\n` +
     `**Hosted by:** <@${g.hostId}>\n` +
     `**Ends:** <t:${Math.floor(g.endsAt / 1000)}:R>\n` +
     `**Winners:** ${g.winners}\n` +
@@ -36,7 +37,7 @@ const TEXT = {
     `Click the button below to enter!`,
 
   ended: (g) =>
-    `# 🎉 ${g.prize}\n` +
+    `# Prize: ${g.prize}\n` +
     `**Hosted by:** <@${g.hostId}>\n` +
     `**Ended:** <t:${Math.floor(g.endsAt / 1000)}:R>\n` +
     `**Entries:** ${g.entries.length}\n\n` +
@@ -45,7 +46,7 @@ const TEXT = {
       : '**Winners:** No valid entries'),
 
   announceWinners: (g) =>
-    `🎉 Congratulations ${g.winnerIds.map((id) => `<@${id}>`).join(', ')}! You won **${g.prize}**!`,
+    `Congratulations ${g.winnerIds.map((id) => `<@${id}>`).join(', ')}! You won **${g.prize}**!`,
 
   announceNoEntries: (g) =>
     `Nobody entered the giveaway for **${g.prize}**, so there are no winners.`,

@@ -76,7 +76,7 @@ module.exports = {
       );
 
       return interaction.editReply(
-        `🎉 Giveaway started successfully!\n${message.url}`
+        `Giveaway started successfully!\n${message.url}`
       );
 
     } catch (error) {
