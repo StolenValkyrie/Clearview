@@ -5,7 +5,9 @@ const {
   Client, GatewayIntentBits, Collection,
   ContainerBuilder, EmbedBuilder, TextDisplayBuilder, MessageFlags,
 } = require('discord.js');
-const { handleOrderInteraction } = require('./orders');
+const { handleOrderInteraction } = require('./systems/orders');
+const { handleGiveawayInteraction, resumeGiveaways } = require('./systems/giveaways');
+const { handlePortfolioMessage } = require('./systems/portfolios');
 
 // 1. Create the client FIRST
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
