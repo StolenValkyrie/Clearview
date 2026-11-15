@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { createGiveaway, parseDuration } = require('../systems/giveaways');
+const { createGiveaway, parseDuration } = require('./giveaway');
 
 module.exports = {
   data: new SlashCommandBuilder()
