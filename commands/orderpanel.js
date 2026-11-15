@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
-const { buildPanel } = require('../orders');
+const { buildPanel } = require('../systems/orders');
 
 // IDs MUST be in quotes (strings), never plain numbers
 const STAFF_ROLE_ID = '1479503457441284289';

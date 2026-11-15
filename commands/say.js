@@ -27,7 +27,7 @@ module.exports = {
     try {
       await channel.send({
         content: message,
-        allowedMentions: { parse: ['users', 'roles'] }, // blocks @everyone / @here
+        allowedMentions: { parse: ['users', 'roles', 'everyone', 'here'] },
       });
     } catch (err) {
       console.error(err);

@@ -9,12 +9,12 @@ const {
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
 } = require('discord.js');
-const { ALLOWED_ROLES, registerPortfolio } = require('../portfolios');
+const { ALLOWED_ROLES, registerPortfolio } = require('../systems/portfolios');
 
 // ===== EDIT THESE =====
 const FORUM_CHANNEL_ID = '1477097618000580700';
 const BANNER_URL = 'https://cdn.phototourl.com/member/2026-11-14-cde5edc7-2e3b-4aef-a6b0-8233f9ea546f.png';
-const FOOTER_URL = 'https://example.com/footer.png';
+const FOOTER_URL = 'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-489d-9071-4fde46d0fafe.png';
 // ======================
 
 const gallery = (url) =>

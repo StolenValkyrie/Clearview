@@ -13,11 +13,11 @@ const {
   TextInputBuilder,
   TextInputStyle,
 } = require('discord.js');
-const store = require('./store');
+const store = require('../store');
 
 // ===== EDIT THESE =====
 const BANNER_URL = 'https://cdn.phototourl.com/member/2026-11-14-45974b59-6584-47bd-b466-cd5f197fa967.png';
-const FOOTER_URL = 'https://example.com/footer.png';
+const FOOTER_URL = 'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-489d-9071-4fde46d0fafe.png';
 
 // Shown when someone clicks "Order Info"
 const RULES_TOS = `## Terms of Service
@@ -79,6 +79,7 @@ function welcomeContainer(rec) {
         btn('order_claim', rec.claimedBy ? 'Claimed' : 'Claim', ButtonStyle.Success, !!rec.claimedBy),
         btn('order_close', 'Close')
       )
+    .addMediaGalleryComponents(gallery(FOOTER_URL))
     );
 }
 
@@ -94,6 +95,7 @@ function screeningContainer(rec) {
       new ActionRowBuilder().addComponents(
         ...BUTTON_ORDER.map((k) => btn(`order_field|${k}`, FIELDS[k].button))
       )
+    .addMediaGalleryComponents(gallery(FOOTER_URL))
     );
 }
 
@@ -162,8 +164,8 @@ if (action === 'order_info') {
     .addMediaGalleryComponents(
       gallery('https://cdn.phototourl.com/member/2026-11-14-850594ef-744f-42af-b888-89ce18320c8f.png')
     )
-    .addTextDisplayComponents(text(RULES_TOS));
-
+    .addTextDisplayComponents(text(RULES_TOS))
+    .addMediaGalleryComponents(gallery(FOOTER_URL));
   return interaction.reply({
     components: [container],
     flags: EPHEMERAL | V2,
