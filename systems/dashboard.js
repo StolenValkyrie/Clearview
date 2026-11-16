@@ -16,9 +16,10 @@ const {
 } = require('discord.js');
 
 // ===== EDIT THESE =====
+const BANNER_URL = 'https://cdn.phototourl.com/member/2026-11-16-b08a3b31-ce30-4eeb-a960-2d15a6faf5f3.png';
 const FOOTER_URL = 'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-489d-9071-4fde46d0fafe.png';
-const SUPPORT_ROLE_ID = 'PUT_STAFF_ROLE_ID_HERE';
-const SUPPORT_CATEGORY_ID = 'PUT_SUPPORT_CATEGORY_ID_HERE';
+const SUPPORT_ROLE_ID = '1479500802983727248';
+const SUPPORT_CATEGORY_ID = '1473791839738921158';
 
 const TEXT = {
   dashboard:
@@ -46,12 +47,15 @@ const EPHEMERAL = MessageFlags.Ephemeral;
 const text = (t) => new TextDisplayBuilder().setContent(t);
 const divider = () =>
   new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small);
+const banner = () =>
+  new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(BANNER_URL));
 const footer = () =>
   new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(FOOTER_URL));
 
 // ---------- the dashboard ----------
 function buildDashboard() {
   return new ContainerBuilder()
+    .addMediaGalleryComponents(banner())
     .addTextDisplayComponents(text(TEXT.dashboard))
     .addSeparatorComponents(divider())
     .addMediaGalleryComponents(footer())
