@@ -33,6 +33,7 @@ const STAFF_ROLE_IDS = ['1479503457441284289'];
 const KINDS = {
   order: { prefix: 'ORD', label: 'Order' },
   ticket: { prefix: 'SUP', label: 'Support' },
+  application: { prefix: 'APP', label: 'Application' },
 };
 // ======================
 
@@ -216,7 +217,7 @@ const fail = (message) => ({ ok: false, message });
 
 async function claimCase(client, channel, member) {
   const record = getByChannel(channel.id);
-  if (!record) return fail('This is not an active ticket or order channel.');
+  if (!record) return fail('This is not an active ticket, order or application channel.');
   if (!canManageCase(member, record)) return fail('Only staff can claim this.');
   if (record.claimedBy) return fail(`This is already claimed by <@${record.claimedBy}>.`);
 
@@ -229,7 +230,7 @@ async function claimCase(client, channel, member) {
 
 async function unclaimCase(client, channel, member) {
   const record = getByChannel(channel.id);
-  if (!record) return fail('This is not an active ticket or order channel.');
+  if (!record) return fail('This is not an active ticket, order or application channel.');
   if (!record.claimedBy) return fail('Nobody has claimed this.');
   if (record.claimedBy !== member.id && !isManager(member)) {
     return fail('Only the staff member who claimed this (or a manager) can unclaim it.');
@@ -244,7 +245,7 @@ async function unclaimCase(client, channel, member) {
 
 async function renameCase(client, channel, member, input) {
   const record = getByChannel(channel.id);
-  if (!record) return fail('This is not an active ticket or order channel.');
+  if (!record) return fail('This is not an active ticket, order or application channel.');
   if (!canManageCase(member, record)) return fail('Only staff can rename this.');
 
   const name = String(input || '')
@@ -541,7 +542,7 @@ function buildList(filters, page, viewerId) {
   );
 
   const header =
-    `# Tickets & Orders\n` +
+    `# Tickets, Orders & Applications\n` +
     `**Showing:** ${type} • ${status}${userId ? ` • <@${userId}>` : ''} - **${list.length}** found\n\n`;
 
   const container = new ContainerBuilder()
@@ -618,7 +619,7 @@ async function handleCaseInteraction(interaction) {
   // ===== Close button -> ask for a reason =====
   if (action === 'case_close') {
     const record = getByChannel(interaction.channel.id);
-    if (!record) return deny('This is not an active ticket or order channel.');
+    if (!record) return deny('This is not an active ticket, order or application channel.');
     if (!canClose(interaction.member, record)) return deny("You can't close this.");
 
     const modal = new ModalBuilder()
@@ -641,7 +642,7 @@ async function handleCaseInteraction(interaction) {
   // ===== Close modal submitted =====
   if (action === 'case_closemodal') {
     const record = getByChannel(interaction.channel.id);
-    if (!record) return deny('This is not an active ticket or order channel.');
+    if (!record) return deny('This is not an active ticket, order or application channel.');
     if (!canClose(interaction.member, record)) return deny("You can't close this.");
 
     const reason = interaction.fields.getTextInputValue('reason').trim() || null;
@@ -712,7 +713,7 @@ async function handleCaseInteraction(interaction) {
     if (interaction.user.id !== viewerId) return deny('Only the person who ran this command can use this menu.');
 
     const record = getById(interaction.values[0]);
-    if (!record) return deny('That ticket or order no longer exists.');
+    if (!record) return deny('That case no longer exists.');
 
     // resets the dropdown so the same one can be picked again
     await interaction.update({

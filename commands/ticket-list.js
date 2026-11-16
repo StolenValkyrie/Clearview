@@ -11,11 +11,12 @@ module.exports = {
     .addStringOption((o) =>
       o
         .setName('type')
-        .setDescription('Tickets, orders or both')
+        .setDescription('Tickets, orders, applications or all')
         .addChoices(
           { name: 'All', value: 'all' },
           { name: 'Support tickets', value: 'ticket' },
-          { name: 'Orders', value: 'order' }
+          { name: 'Orders', value: 'order' },
+          { name: 'Applications', value: 'application' }
         )
     )
     .addStringOption((o) =>
@@ -60,9 +61,11 @@ module.exports = {
     const words = args.map((a) => a.toLowerCase());
     const type = words.includes('orders') || words.includes('order')
       ? 'order'
-      : words.includes('tickets') || words.includes('ticket')
-        ? 'ticket'
-        : 'all';
+      : words.includes('applications') || words.includes('application')
+        ? 'application'
+        : words.includes('tickets') || words.includes('ticket')
+          ? 'ticket'
+          : 'all';
     const status = words.includes('open') ? 'open' : words.includes('closed') ? 'closed' : 'all';
 
     return message.reply({
