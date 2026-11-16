@@ -23,10 +23,15 @@ const FOOTER_URL = 'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-4
 const SUPPORT_ROLE_ID = '1479500802983727248';
 const SUPPORT_CATEGORY_ID = '1473791839738921158';
 
+// Applications open in their own private channel. These default to the support
+// role and category, so swap in different IDs if applications should go elsewhere.
+const APPLICATION_ROLE_ID = SUPPORT_ROLE_ID;
+const APPLICATION_CATEGORY_ID = SUPPORT_CATEGORY_ID;
+
 const TEXT = {
   dashboard:
     '# Dashboard\n' +
-    'Need help? Press **Support** to open a ticket, or pick a topic from the menu below.',
+    'Need help? Press **Support** to open a ticket, press **Application** to apply for a position, or pick a topic from the menu below.',
 
   info:
     '## Information\n' +
@@ -44,8 +49,15 @@ const TEXT = {
     '8. No malicious links or files.\n' +
     '9. No hate speech or discrimination.\n',
 
-  supportWelcome: (user) =>
-    `# Support\nHey ${user}, staff will be with you shortly. Please tell us the reason for your ticket, and relevnt information.\nYou've opened this ticket at <t:${Math.floor(Date.now() / 1000)}:F>.`,
+  supportWelcome: (user, openedAt) =>
+    `# Support\nHey ${user}, staff will be with you shortly. Please tell us the reason for your ticket, and relevant information.\nYou've opened this ticket at <t:${openedAt}:F>.`,
+
+  applicationWelcome: (user, openedAt) =>
+    `# Application\nHey ${user}, thanks for applying! Please answer the questions below and staff will review your application.\nYou've opened this application at <t:${openedAt}:F>.\n\n` +
+    '1. Which position are you applying for?\n' +
+    '2. Why do you want this position?\n' +
+    '3. Do you have any relevant experience?\n' +
+    '4. What is your timezone and how active can you be?',
 };
 // ======================
 
@@ -71,7 +83,11 @@ function buildDashboard() {
         new ButtonBuilder()
           .setCustomId('dash_support')
           .setLabel('Support')
-          .setStyle(ButtonStyle.Success)
+          .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+          .setCustomId('dash_apply')
+          .setLabel('Application')
+          .setStyle(ButtonStyle.Primary)
       )
     )
     .addActionRowComponents(
@@ -102,15 +118,32 @@ function topicContainer(content) {
     .addMediaGalleryComponents(footer());
 }
 
-// Welcome message inside a ticket. The case system redraws it on claim / unclaim.
-function ticketWelcome(rec) {
+// What differs between a support ticket and an application
+const CASE_TYPES = {
+  ticket: {
+    welcome: (rec) => TEXT.supportWelcome(`<@${rec.openerId}>`, rec.openedAt),
+    roleId: SUPPORT_ROLE_ID,
+    categoryId: SUPPORT_CATEGORY_ID,
+    channelPrefix: 'support',
+    noun: 'ticket',
+  },
+  application: {
+    welcome: (rec) => TEXT.applicationWelcome(`<@${rec.openerId}>`, rec.openedAt),
+    roleId: APPLICATION_ROLE_ID,
+    categoryId: APPLICATION_CATEGORY_ID,
+    channelPrefix: 'application',
+    noun: 'application',
+  },
+};
+
+// Welcome message inside a ticket or application. The case system redraws it on claim / unclaim.
+function caseWelcome(rec) {
+  const type = CASE_TYPES[rec.kind];
   const claimed = rec.claimedBy ? `\n\n**Claimed by:** <@${rec.claimedBy}>` : '';
 
   return new ContainerBuilder()
     .addTextDisplayComponents(
-      text(
-        `${TEXT.supportWelcome(`<@${rec.openerId}>`)}\n\n**ID:** ${rec.id}${claimed}\n\n||<@&${SUPPORT_ROLE_ID}>||`
-      )
+      text(`${type.welcome(rec)}\n\n**ID:** ${rec.id}${claimed}\n\n||<@&${type.roleId}>||`)
     )
     .addSeparatorComponents(divider())
     .addActionRowComponents(
@@ -134,7 +167,8 @@ function ticketWelcome(rec) {
     .addMediaGalleryComponents(footer());
 }
 
-cases.registerRenderer('ticket', ticketWelcome);
+cases.registerRenderer('ticket', caseWelcome);
+cases.registerRenderer('application', caseWelcome);
 
 // ---------- interaction handler ----------
 async function handleDashboardInteraction(interaction) {
@@ -154,13 +188,21 @@ async function handleDashboardInteraction(interaction) {
     return;
   }
 
-  // ===== Support button -> private ticket channel =====
-  if (interaction.isButton() && interaction.customId === 'dash_support') {
-    const existing = cases.findOpenByOpener('ticket', interaction.user.id, interaction.guild);
+  // ===== Support / Application button -> private channel =====
+  const kind =
+    interaction.customId === 'dash_support'
+      ? 'ticket'
+      : interaction.customId === 'dash_apply'
+        ? 'application'
+        : null;
+
+  if (interaction.isButton() && kind) {
+    const type = CASE_TYPES[kind];
+    const existing = cases.findOpenByOpener(kind, interaction.user.id, interaction.guild);
 
     if (existing) {
       return interaction.reply({
-        content: `You already have an open ticket: <#${existing.channelId}>`,
+        content: `You already have an open ${type.noun}: <#${existing.channelId}>`,
         flags: EPHEMERAL,
       });
     }
@@ -174,29 +216,29 @@ async function handleDashboardInteraction(interaction) {
     ];
 
     const channel = await interaction.guild.channels.create({
-      name: `support-${interaction.user.username}`,
+      name: `${type.channelPrefix}-${interaction.user.username}`,
       type: ChannelType.GuildText,
-      parent: SUPPORT_CATEGORY_ID,
+      parent: type.categoryId,
       permissionOverwrites: [
         { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
         { id: interaction.user.id, allow: perms },
-        { id: SUPPORT_ROLE_ID, allow: perms },
+        { id: type.roleId, allow: perms },
         { id: interaction.client.user.id, allow: [...perms, PermissionFlagsBits.ManageChannels] },
       ],
     });
 
-    // creates the SUP-xxxxx record and logs that it was opened
+    // creates the SUP-xxxxx / APP-xxxxx record and logs that it was opened
     const rec = await cases.openCase(interaction.client, {
-      kind: 'ticket',
+      kind,
       channel,
       opener: interaction.user,
-      staffRoleId: SUPPORT_ROLE_ID,
+      staffRoleId: type.roleId,
     });
 
-    const welcome = await channel.send({ components: [ticketWelcome(rec)], flags: V2 });
+    const welcome = await channel.send({ components: [caseWelcome(rec)], flags: V2 });
     cases.updateCase(rec.id, { welcomeMessageId: welcome.id });
 
-    return interaction.editReply({ content: `Your ticket has been created: ${channel}` });
+    return interaction.editReply({ content: `Your ${type.noun} has been created: ${channel}` });
   }
 }
 
