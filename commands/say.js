@@ -27,12 +27,18 @@ module.exports = {
     try {
       await channel.send({
         content: message,
-        allowedMentions: { parse: ['users', 'roles', 'everyone', 'here'] },
+        allowedMentions: { parse: ['users', 'roles', 'everyone'] },
       });
     } catch (err) {
       console.error(err);
+
+      // 50001 = Missing Access, 50013 = Missing Permissions
+      const permissionProblem = err.code === 50001 || err.code === 50013;
+
       return interaction.reply({
-        content: `I can't send messages in ${channel}. Check my permissions there.`,
+        content: permissionProblem
+          ? `I can't send messages in ${channel}. Check my permissions there.`
+          : `Discord rejected that message: ${err.message}`,
         flags: MessageFlags.Ephemeral,
       });
     }
