@@ -18,7 +18,7 @@ const FOOTER_URL = 'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-4
 
 const TEXT = {
   header: (p) =>
-    `# ${p.question}\n` +
+    `# 📊 ${p.question}\n` +
     `**Asked by:** <@${p.hostId}>` +
     (p.endsAt
       ? `\n**${p.ended ? 'Ended' : 'Ends'}:** <t:${Math.floor(p.endsAt / 1000)}:R>`
@@ -84,7 +84,6 @@ function buildPoll(p) {
   return new ContainerBuilder()
     .addTextDisplayComponents(text(`${TEXT.header(p)}\n\n${resultsText(p)}`))
     .addSeparatorComponents(divider())
-    .addMediaGalleryComponents(gallery(FOOTER_URL))
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(
         p.options.map((option, i) =>
@@ -95,7 +94,8 @@ function buildPoll(p) {
             .setDisabled(p.ended)
         )
       )
-    );
+    )
+    .addMediaGalleryComponents(gallery(FOOTER_URL));
 }
 
 // ---------- ending ----------

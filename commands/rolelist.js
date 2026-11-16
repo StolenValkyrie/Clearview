@@ -63,9 +63,6 @@ function buildRoleList(guild, page, userId, hasCounts) {
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     )
-    .addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(FOOTER_URL))
-    )
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -84,6 +81,9 @@ function buildRoleList(guild, page, userId, hasCounts) {
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(current >= pages - 1)
       )
+    )
+    .addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(FOOTER_URL))
     );
 }
 

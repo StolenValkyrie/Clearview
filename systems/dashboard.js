@@ -18,8 +18,8 @@ const {
 // ===== EDIT THESE =====
 const BANNER_URL = 'https://cdn.phototourl.com/member/2026-11-16-b08a3b31-ce30-4eeb-a960-2d15a6faf5f3.png';
 const FOOTER_URL = 'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-489d-9071-4fde46d0fafe.png';
-const SUPPORT_ROLE_ID = '1479500802983727248';
-const SUPPORT_CATEGORY_ID = '1473791839738921158';
+const SUPPORT_ROLE_ID = 'PUT_STAFF_ROLE_ID_HERE';
+const SUPPORT_CATEGORY_ID = 'PUT_SUPPORT_CATEGORY_ID_HERE';
 
 const TEXT = {
   dashboard:
@@ -58,7 +58,6 @@ function buildDashboard() {
     .addMediaGalleryComponents(banner())
     .addTextDisplayComponents(text(TEXT.dashboard))
     .addSeparatorComponents(divider())
-    .addMediaGalleryComponents(footer())
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -83,7 +82,8 @@ function buildDashboard() {
               .setValue('rules')
           )
       )
-    );
+    )
+    .addMediaGalleryComponents(footer());
 }
 
 // the private message shown when someone picks Info or Rules
@@ -154,7 +154,6 @@ async function handleDashboardInteraction(interaction) {
         text(`${TEXT.supportWelcome(interaction.user)}\n\n||<@&${SUPPORT_ROLE_ID}>||`)
       )
       .addSeparatorComponents(divider())
-      .addMediaGalleryComponents(footer())
       .addActionRowComponents(
         new ActionRowBuilder().addComponents(
           new ButtonBuilder()
@@ -162,7 +161,8 @@ async function handleDashboardInteraction(interaction) {
             .setLabel('Close')
             .setStyle(ButtonStyle.Danger)
         )
-      );
+      )
+      .addMediaGalleryComponents(footer());
 
     await channel.send({ components: [container], flags: V2 });
 
