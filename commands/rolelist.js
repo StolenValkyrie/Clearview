@@ -1,4 +1,5 @@
 const {
+  SlashCommandBuilder,
   MessageFlags,
   ContainerBuilder,
   TextDisplayBuilder,
@@ -109,4 +110,24 @@ async function handleRoleListInteraction(interaction) {
   });
 }
 
-module.exports = { loadMembers, buildRoleList, handleRoleListInteraction };
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName('rolelist')
+    .setDescription('Shows every role in the server with member counts'),
+
+  async execute(interaction) {
+    // Loading every member can take a moment, so acknowledge first
+    await interaction.deferReply();
+
+    const hasCounts = await loadMembers(interaction.guild);
+
+    return interaction.editReply({
+      components: [buildRoleList(interaction.guild, 0, interaction.user.id, hasCounts)],
+      flags: V2,
+    });
+  },
+
+  loadMembers,
+  buildRoleList,
+  handleRoleListInteraction,
+};
