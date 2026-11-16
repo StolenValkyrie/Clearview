@@ -18,8 +18,8 @@ const {
 // ===== EDIT THESE =====
 const BANNER_URL = 'https://cdn.phototourl.com/member/2026-11-16-b08a3b31-ce30-4eeb-a960-2d15a6faf5f3.png';
 const FOOTER_URL = 'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-489d-9071-4fde46d0fafe.png';
-const SUPPORT_ROLE_ID = 'PUT_STAFF_ROLE_ID_HERE';
-const SUPPORT_CATEGORY_ID = 'PUT_SUPPORT_CATEGORY_ID_HERE';
+const SUPPORT_ROLE_ID = '1479500802983727248';
+const SUPPORT_CATEGORY_ID = '1473791839738921158';
 
 const TEXT = {
   dashboard:
@@ -28,13 +28,19 @@ const TEXT = {
 
   info:
     '## Information\n' +
-    'Replace this with your server information.',
+    'Welcome to Clearview Customs! We are an aspriring community of creators who aim to provide the best experience for you and everyone else!\nOrginally .stacked, ownership has changed and we are now officially Clearview customs.\n\n We appreciate you joining.',
 
   rules:
     '## Rules\n' +
     '1. Be respectful to everyone.\n' +
     '2. No spamming.\n' +
-    '3. Replace these with your own rules.',
+    '3. Discord ToS is enforced.\n' +
+    '4. No NSFW content. This includes profile pictures, banners, and usernames.\n' +
+    '5. Keep all discussions in the appropriate channels.\n' +
+    '6. No advertising other servers.\n' +
+    '7. No impersonation of staff or other members.\n' +
+    '8. No malicious links or files.\n' +
+    '9. No hate speech or discrimination.\n',
 
   supportWelcome: (user) =>
     `# Support\nHey ${user}, staff will be with you shortly. Tell us what you need help with.`,
