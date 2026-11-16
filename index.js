@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 
 const fs = require('node:fs');
@@ -26,6 +25,8 @@ const {
   resumePolls,
 } = require('./systems/polls');
 
+const { handleRoleListInteraction } = require('./systems/rolelist');
+const { handleDashboardInteraction } = require('./systems/dashboard');
 const { handlePortfolioMessage } = require('./systems/portfolios');
 
 // Check environment variables
@@ -225,12 +226,17 @@ client.once('clientReady', async () => {
 
 // Interaction handler
 client.on('interactionCreate', async (interaction) => {
-  // Buttons and modals
+  // Buttons, dropdown menus and modals
   if (
     interaction.isButton() ||
+    interaction.isStringSelectMenu() ||
     interaction.isModalSubmit()
   ) {
     try {
+      if (interaction.customId.startsWith('dash_')) {
+        return await handleDashboardInteraction(interaction);
+      }
+
       if (
         interaction.isButton() &&
         interaction.customId.startsWith('gw_')
@@ -243,6 +249,13 @@ client.on('interactionCreate', async (interaction) => {
         interaction.customId.startsWith('poll_')
       ) {
         return await handlePollInteraction(interaction);
+      }
+
+      if (
+        interaction.isButton() &&
+        interaction.customId.startsWith('rolelist')
+      ) {
+        return await handleRoleListInteraction(interaction);
       }
 
       if (
