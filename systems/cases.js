@@ -674,7 +674,6 @@ async function handleCaseInteraction(interaction) {
 
     return interaction.update({
       components: [buildTranscriptView(record, data, Number(b))],
-      flags: V2,
       allowedMentions: { parse: [] },
     });
   }
@@ -703,7 +702,6 @@ async function handleCaseInteraction(interaction) {
 
     return interaction.update({
       components: [buildList(filters, Number(a), viewerId)],
-      flags: V2,
       allowedMentions: { parse: [] },
     });
   }
@@ -719,7 +717,6 @@ async function handleCaseInteraction(interaction) {
     // resets the dropdown so the same one can be picked again
     await interaction.update({
       components: [buildList(filters, Number(a), viewerId)],
-      flags: V2,
       allowedMentions: { parse: [] },
     });
 
