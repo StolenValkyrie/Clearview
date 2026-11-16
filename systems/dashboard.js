@@ -15,6 +15,8 @@ const {
   StringSelectMenuOptionBuilder,
 } = require('discord.js');
 
+const cases = require('./cases');
+
 // ===== EDIT THESE =====
 const BANNER_URL = 'https://cdn.phototourl.com/member/2026-11-16-b08a3b31-ce30-4eeb-a960-2d15a6faf5f3.png';
 const FOOTER_URL = 'https://cdn.phototourl.com/member/2026-11-15-92b4d11b-7a03-489d-9071-4fde46d0fafe.png';
@@ -43,7 +45,7 @@ const TEXT = {
     '9. No hate speech or discrimination.\n',
 
   supportWelcome: (user) =>
-    `# Support\nHey ${user}, staff will be with you shortly. Tell us what you need help with.`,
+    `# Support\nHey ${user}, staff will be with you shortly. Please tell us the reason for your ticket, and relevnt information.\nYou've opened this ticket at <t:${Math.floor(Date.now() / 1000)}:F>.`,
 };
 // ======================
 
@@ -100,9 +102,39 @@ function topicContainer(content) {
     .addMediaGalleryComponents(footer());
 }
 
-const isStaff = (interaction) =>
-  interaction.member.roles.cache.has(SUPPORT_ROLE_ID) ||
-  interaction.member.permissions.has(PermissionFlagsBits.ManageChannels);
+// Welcome message inside a ticket. The case system redraws it on claim / unclaim.
+function ticketWelcome(rec) {
+  const claimed = rec.claimedBy ? `\n\n**Claimed by:** <@${rec.claimedBy}>` : '';
+
+  return new ContainerBuilder()
+    .addTextDisplayComponents(
+      text(
+        `${TEXT.supportWelcome(`<@${rec.openerId}>`)}\n\n**ID:** ${rec.id}${claimed}\n\n||<@&${SUPPORT_ROLE_ID}>||`
+      )
+    )
+    .addSeparatorComponents(divider())
+    .addActionRowComponents(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('case_claim')
+          .setLabel(rec.claimedBy ? 'Claimed' : 'Claim')
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(!!rec.claimedBy),
+        new ButtonBuilder()
+          .setCustomId('case_unclaim')
+          .setLabel('Unclaim')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(!rec.claimedBy),
+        new ButtonBuilder()
+          .setCustomId('case_close')
+          .setLabel('Close')
+          .setStyle(ButtonStyle.Danger)
+      )
+    )
+    .addMediaGalleryComponents(footer());
+}
+
+cases.registerRenderer('ticket', ticketWelcome);
 
 // ---------- interaction handler ----------
 async function handleDashboardInteraction(interaction) {
@@ -124,12 +156,11 @@ async function handleDashboardInteraction(interaction) {
 
   // ===== Support button -> private ticket channel =====
   if (interaction.isButton() && interaction.customId === 'dash_support') {
-    const topic = `support|${interaction.user.id}`;
-    const existing = interaction.guild.channels.cache.find((channel) => channel.topic === topic);
+    const existing = cases.findOpenByOpener('ticket', interaction.user.id, interaction.guild);
 
     if (existing) {
       return interaction.reply({
-        content: `You already have an open ticket: ${existing}`,
+        content: `You already have an open ticket: <#${existing.channelId}>`,
         flags: EPHEMERAL,
       });
     }
@@ -146,7 +177,6 @@ async function handleDashboardInteraction(interaction) {
       name: `support-${interaction.user.username}`,
       type: ChannelType.GuildText,
       parent: SUPPORT_CATEGORY_ID,
-      topic,
       permissionOverwrites: [
         { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
         { id: interaction.user.id, allow: perms },
@@ -155,40 +185,18 @@ async function handleDashboardInteraction(interaction) {
       ],
     });
 
-    const container = new ContainerBuilder()
-      .addTextDisplayComponents(
-        text(`${TEXT.supportWelcome(interaction.user)}\n\n||<@&${SUPPORT_ROLE_ID}>||`)
-      )
-      .addSeparatorComponents(divider())
-      .addActionRowComponents(
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('dash_close')
-            .setLabel('Close')
-            .setStyle(ButtonStyle.Danger)
-        )
-      )
-      .addMediaGalleryComponents(footer());
+    // creates the SUP-xxxxx record and logs that it was opened
+    const rec = await cases.openCase(interaction.client, {
+      kind: 'ticket',
+      channel,
+      opener: interaction.user,
+      staffRoleId: SUPPORT_ROLE_ID,
+    });
 
-    await channel.send({ components: [container], flags: V2 });
+    const welcome = await channel.send({ components: [ticketWelcome(rec)], flags: V2 });
+    cases.updateCase(rec.id, { welcomeMessageId: welcome.id });
 
     return interaction.editReply({ content: `Your ticket has been created: ${channel}` });
-  }
-
-  // ===== Close button inside a ticket =====
-  if (interaction.isButton() && interaction.customId === 'dash_close') {
-    const [kind, ownerId] = (interaction.channel.topic ?? '').split('|');
-
-    if (kind !== 'support') {
-      return interaction.reply({ content: "This isn't a support ticket.", flags: EPHEMERAL });
-    }
-
-    if (interaction.user.id !== ownerId && !isStaff(interaction)) {
-      return interaction.reply({ content: "You can't close this ticket.", flags: EPHEMERAL });
-    }
-
-    await interaction.reply('Closing in 5 seconds...');
-    setTimeout(() => interaction.channel.delete().catch(console.error), 5000);
   }
 }
 

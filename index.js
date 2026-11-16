@@ -28,6 +28,13 @@ const {
 const { handleRoleListInteraction } = require('./systems/rolelist');
 const { handleDashboardInteraction } = require('./systems/dashboard');
 const { handlePortfolioMessage } = require('./systems/portfolios');
+const {
+  handleCaseInteraction,
+  handlePrefixCommand,
+  handleChannelDelete,
+} = require('./systems/cases');
+
+const PREFIX = '^';
 
 // Check environment variables
 if (!process.env.TOKEN) {
@@ -46,6 +53,7 @@ const client = new Client({
 });
 
 client.commands = new Collection();
+client.prefixCommands = new Collection();
 
 // Load commands
 const commandsPath = path.join(__dirname, 'commands');
@@ -69,6 +77,11 @@ for (const file of commandFiles) {
     ) {
       client.commands.set(command.data.name, command);
       console.log(`[Commands] Loaded: ${command.data.name}`);
+
+      // Commands that also export prefix() can be run with ^name
+      if (typeof command.prefix === 'function') {
+        client.prefixCommands.set(command.data.name, command);
+      }
     } else {
       console.warn(
         `[Commands] ${file} is missing data or execute().`
@@ -233,6 +246,11 @@ client.on('interactionCreate', async (interaction) => {
     interaction.isModalSubmit()
   ) {
     try {
+      // Tickets and orders: claim, unclaim, close, transcripts, lists
+      if (interaction.customId.startsWith('case_')) {
+        return await handleCaseInteraction(interaction);
+      }
+
       if (interaction.customId.startsWith('dash_')) {
         return await handleDashboardInteraction(interaction);
       }
@@ -313,6 +331,43 @@ client.on('messageCreate', async (message) => {
       '[Portfolio] Message handler error:',
       error
     );
+  }
+
+  if (!message.content.startsWith(PREFIX)) return;
+
+  // ^claim ^unclaim ^close ^rename (tickets and orders only)
+  try {
+    await handlePrefixCommand(message);
+  } catch (error) {
+    console.error('[Cases] Prefix command error:', error);
+  }
+
+  // ^ticket ^ticket-lookup ^ticket-list ^purchase-log
+  const [name, ...args] = message.content
+    .slice(PREFIX.length)
+    .trim()
+    .split(/\s+/);
+
+  const prefixCommand = client.prefixCommands.get(
+    (name || '').toLowerCase()
+  );
+
+  if (!prefixCommand) return;
+
+  try {
+    await prefixCommand.prefix(message, args);
+  } catch (error) {
+    console.error('[Prefix Command Error]', error);
+    message.reply('Something went wrong. Please try again later.').catch(() => {});
+  }
+});
+
+// A ticket or order channel deleted by hand still gets logged
+client.on('channelDelete', async (channel) => {
+  try {
+    await handleChannelDelete(channel);
+  } catch (error) {
+    console.error('[Cases] Channel delete error:', error);
   }
 });
 

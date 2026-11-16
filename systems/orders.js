@@ -1,5 +1,4 @@
-
-const store = require('../store');
+const cases = require('./cases');
 
 const {
   ChannelType,
@@ -120,7 +119,8 @@ function buildPanel(roleId, categoryId) {
     .addMediaGalleryComponents(gallery(FOOTER_URL));
 }
 
-// Welcome message inside the order channel
+// Welcome message inside the order channel.
+// The case system rebuilds this whenever the order is claimed or unclaimed.
 function welcomeContainer(rec) {
   const claimed = rec.claimedBy
     ? `\n\n**Claimed by:** <@${rec.claimedBy}>`
@@ -131,7 +131,7 @@ function welcomeContainer(rec) {
     .addTextDisplayComponents(
       text(
         `## Welcome
-Welcome to your order.${claimed}
+Welcome to your order. **ID:** ${rec.id}${claimed}
 
 ||<@&${STAFF_PING_ROLE_ID}>||`
       )
@@ -139,12 +139,18 @@ Welcome to your order.${claimed}
     .addActionRowComponents(
       new ActionRowBuilder().addComponents(
         btn(
-          'order_claim',
+          'case_claim',
           rec.claimedBy ? 'Claimed' : 'Claim',
           ButtonStyle.Success,
           !!rec.claimedBy
         ),
-        btn('order_close', 'Close', ButtonStyle.Danger)
+        btn(
+          'case_unclaim',
+          'Unclaim',
+          ButtonStyle.Secondary,
+          !rec.claimedBy
+        ),
+        btn('case_close', 'Close', ButtonStyle.Danger)
       )
     )
     .addMediaGalleryComponents(gallery(FOOTER_URL));
@@ -153,7 +159,7 @@ Welcome to your order.${claimed}
 // Order information / screening message
 function screeningContainer(rec) {
   const lines = TEXT_ORDER
-    .map((key) => `**${FIELDS[key].label}:** ${rec[key] ?? 'Not provided'}`)
+    .map((key) => `**${FIELDS[key].label}:** ${rec[key] || 'Not provided'}`)
     .join('\n');
 
   return new ContainerBuilder()
@@ -161,7 +167,7 @@ function screeningContainer(rec) {
     .addTextDisplayComponents(
       text(
         `## Order Information
-<@${rec.ownerId}> - please fill out the details below.
+<@${rec.openerId}> - please fill out the details below.
 
 ${lines}`
       )
@@ -176,22 +182,20 @@ ${lines}`
     .addMediaGalleryComponents(gallery(FOOTER_URL));
 }
 
+// tells the case system how to redraw the welcome message
+cases.registerRenderer('order', welcomeContainer);
+
 // ---------- order helpers ----------
 
 function openOrders(guild) {
-  return Object.entries(store.all())
-    .filter(([id]) => guild.channels.cache.has(id))
-    .map(([id, rec]) => ({ id, ...rec }))
-    .sort((a, b) => a.createdAt - b.createdAt);
-}
-
-function isStaff(interaction, rec) {
-  return (
-    interaction.member.roles.cache.has(rec.staffRoleId) ||
-    interaction.member.permissions.has(
-      PermissionFlagsBits.ManageChannels
-    )
-  );
+  return cases
+    .allCases()
+    .filter(
+      (c) =>
+        c.kind === 'order' &&
+        c.status === 'open' &&
+        guild.channels.cache.has(c.channelId)
+    );
 }
 
 // ---------- main handler ----------
@@ -212,13 +216,15 @@ async function handleOrderInteraction(interaction) {
   // ===== ORDER BUTTON =====
 
   if (action === 'order_open' && interaction.isButton()) {
-    const existing = openOrders(interaction.guild).find(
-      (order) => order.ownerId === interaction.user.id
+    const existing = cases.findOpenByOpener(
+      'order',
+      interaction.user.id,
+      interaction.guild
     );
 
     if (existing) {
       return say(
-        `You already have an open order: <#${existing.id}>`
+        `You already have an open order: <#${existing.channelId}>`
       );
     }
 
@@ -260,26 +266,29 @@ async function handleOrderInteraction(interaction) {
       ],
     });
 
-    const rec = {
-      ownerId: interaction.user.id,
+    // creates the ORD-xxxxx record and logs that it was opened
+    const rec = await cases.openCase(interaction.client, {
+      kind: 'order',
+      channel,
+      opener: interaction.user,
       staffRoleId: roleId,
-      createdAt: Date.now(),
-      claimedBy: null,
-      budget: '',
-      description: '',
-      quantity: '',
-      deadline: '',
-    };
+    });
 
-    store.set(channel.id, rec);
-
-    await channel.send({
+    const welcome = await channel.send({
       components: [welcomeContainer(rec)],
       flags: V2,
     });
 
+    cases.updateCase(rec.id, {
+      welcomeMessageId: welcome.id,
+      budget: '',
+      description: '',
+      quantity: '',
+      deadline: '',
+    });
+
     await channel.send({
-      components: [screeningContainer(rec)],
+      components: [screeningContainer(cases.getById(rec.id))],
       flags: V2,
     });
 
@@ -315,65 +324,22 @@ async function handleOrderInteraction(interaction) {
   }
 
   // ===== EVERYTHING BELOW HAPPENS INSIDE AN ORDER CHANNEL =====
+  // (claim / unclaim / close are handled by the case system)
 
-  const rec = store.get(interaction.channel?.id);
+  const rec = cases.getByChannel(interaction.channel?.id);
 
-  if (!rec) {
+  if (!rec || rec.kind !== 'order') {
     return say("This isn't an active order channel.");
   }
 
-  // ===== CLAIM ORDER =====
-
-  if (action === 'order_claim' && interaction.isButton()) {
-    if (!isStaff(interaction, rec)) {
-      return say('Only staff can claim orders.');
-    }
-
-    if (rec.claimedBy) {
-      return say('This order is already claimed.');
-    }
-
-    store.update(interaction.channel.id, {
-      claimedBy: interaction.user.id,
-    });
-
-    const updatedRec = store.get(interaction.channel.id);
-
-    return interaction.update({
-      components: [welcomeContainer(updatedRec)],
-    });
-  }
-
-  // ===== CLOSE ORDER =====
-
-  if (action === 'order_close' && interaction.isButton()) {
-    if (
-      interaction.user.id !== rec.ownerId &&
-      !isStaff(interaction, rec)
-    ) {
-      return say("You can't close this order.");
-    }
-
-    await interaction.reply({
-      content: 'Closing in 5 seconds...',
-      flags: EPHEMERAL,
-    });
-
-    setTimeout(() => {
-      store.remove(interaction.channel.id);
-      interaction.channel.delete().catch(console.error);
-    }, 5000);
-
-    return;
-  }
+  const canEdit = () =>
+    interaction.user.id === rec.openerId ||
+    cases.canManageCase(interaction.member, rec);
 
   // ===== FIELD BUTTONS -> OPEN MODAL =====
 
   if (action === 'order_field' && interaction.isButton()) {
-    if (
-      interaction.user.id !== rec.ownerId &&
-      !isStaff(interaction, rec)
-    ) {
+    if (!canEdit()) {
       return say("You can't edit this order.");
     }
 
@@ -415,20 +381,15 @@ async function handleOrderInteraction(interaction) {
       return say('That order field does not exist.');
     }
 
-    if (
-      interaction.user.id !== rec.ownerId &&
-      !isStaff(interaction, rec)
-    ) {
+    if (!canEdit()) {
       return say("You can't edit this order.");
     }
 
     const value = interaction.fields.getTextInputValue('value');
 
-    store.update(interaction.channel.id, {
+    const updatedRec = cases.updateCase(rec.id, {
       [a]: value,
     });
-
-    const updatedRec = store.get(interaction.channel.id);
 
     return interaction.update({
       components: [screeningContainer(updatedRec)],
