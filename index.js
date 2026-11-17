@@ -28,6 +28,7 @@ const {
 const { handleRoleListInteraction } = require('./systems/rolelist');
 const { handleDashboardInteraction } = require('./systems/dashboard');
 const { handlePortfolioMessage } = require('./systems/portfolios');
+const { handleMemberJoin } = require('./systems/welcome');
 const {
   handleCaseInteraction,
   handlePrefixCommand,
@@ -342,7 +343,7 @@ client.on('messageCreate', async (message) => {
     console.error('[Cases] Prefix command error:', error);
   }
 
-  // ^ticket ^ticket-lookup ^ticket-list ^purchase-log
+  // ^ticket-lookup and any other command that exports prefix()
   const [name, ...args] = message.content
     .slice(PREFIX.length)
     .trim()
@@ -359,6 +360,15 @@ client.on('messageCreate', async (message) => {
   } catch (error) {
     console.error('[Prefix Command Error]', error);
     message.reply('Something went wrong. Please try again later.').catch(() => {});
+  }
+});
+
+// Welcome message when someone joins
+client.on('guildMemberAdd', async (member) => {
+  try {
+    await handleMemberJoin(member);
+  } catch (error) {
+    console.error('[Welcome] Member join error:', error);
   }
 });
 
